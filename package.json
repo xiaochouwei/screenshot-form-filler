@@ -1,0 +1,40 @@
+{
+  "name": "local-screenshot-form-filler",
+  "version": "0.9.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/core.test.mjs tests/choices.test.mjs tests/region.test.mjs tests/region-lifecycle.test.mjs tests/drag-routing.test.mjs tests/structured.test.mjs tests/records.test.mjs tests/multi-text.test.mjs tests/row-state.test.mjs tests/workspace-entry.test.mjs",
+    "test:regression": "node scripts/regression.mjs",
+    "test:shelf": "node --test tests/history.test.mjs && node tests/shelf-browser.mjs && node tests/shelf-processing.mjs",
+    "test:boundaries": "node --test tests/control-boundaries.mjs && node tests/capture-persistence.mjs",
+    "test:states": "node --test tests/state-capture.mjs && node tests/state-region-workflow.mjs",
+    "test:multi": "node tests/multi-text-browser.mjs && node tests/multi-image.mjs",
+    "test:structured": "node tests/structured-browser.mjs && node tests/structured-image.mjs",
+    "test:ocr": "node tests/ocr-local.mjs",
+    "test:choices": "node tests/choices-browser.mjs",
+    "test:windows": "node tests/window-drop.mjs",
+    "test:scan": "node tests/scan-target.mjs",
+    "test:permissions": "node tests/permission-flow.mjs",
+    "test:browser": "node tests/browser.mjs",
+    "test:extension": "node tests/extension.mjs",
+    "test:screenshot": "node tests/screenshot-layout.mjs",
+    "test:quick": "node tests/quick-entry.mjs",
+    "test:drag": "node tests/drag-batch.mjs",
+    "test:region": "node tests/region-browser.mjs",
+    "test:labels": "node tests/labels-browser.mjs",
+    "test:generic": "node tests/generic-workflow.mjs",
+    "test:mixed": "node tests/mixed-source.mjs",
+    "test:placeholder": "node tests/placeholder-browser.mjs"
+  },
+  "dependencies": {
+    "@gutenye/ocr-browser": "1.4.9",
+    "lucide": "^0.577.0",
+    "tesseract.js": "7.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "^1.58.0"
+  }
+}

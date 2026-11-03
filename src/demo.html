@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>截图填表 · 测试表单</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",system-ui,sans-serif;color:#25352f;background:#f7f9f8}header{background:#fff;border-bottom:1px solid #dfe7e3;padding:24px 6%}h1{font-size:23px;margin:0 0 8px;font-weight:600}header p{font-size:13px;color:#6d7c74;margin:0}main{max-width:1050px;margin:0 auto;padding:30px 24px}section{padding:24px 0;border-bottom:1px solid #dfe7e3}h2{font-size:16px;margin:0 0 24px}form{background:white;padding:10px 18px;border:1px solid #e2e9e5;border-radius:5px}.form-item{display:grid;grid-template-columns:130px minmax(0,1fr);align-items:center;gap:18px;margin:18px 0}label{font-size:13px;text-align:right}input,select,textarea{width:100%;min-width:0;min-height:37px;border:1px solid #cdd9d2;border-radius:4px;padding:8px 10px;background:#fff;font:13px "Microsoft YaHei",sans-serif;color:#29463a}input:disabled{background:#f1f4f2;color:#64756b}textarea{resize:vertical;min-height:60px}.actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}button{border:1px solid #cdd9d2;border-radius:4px;background:#fff;color:#2d5843;padding:8px 13px;font:12px "Microsoft YaHei",sans-serif;cursor:pointer}.hint{font-size:12px;color:#76847c;line-height:1.8}.required{color:#c64a39;margin-right:5px}#source{background:white;padding:12px 18px}#notice{font-size:12px;color:#107b55;min-height:24px}@media(max-width:600px){main{padding:18px 12px}.form-item{grid-template-columns:94px minmax(0,1fr);gap:9px}form,#source{padding:8px 10px}header{padding:20px}h1{font-size:20px}}
+</style></head><body>
+<header><h1>截图填表 · 测试表单</h1><p>本地测试页面，数据不会提交。</p></header>
+<main>
+<section><h2>来源配置</h2><div id="source">
+<div class="form-item"><label>名称</label><input value="融侨" readonly></div>
+<div class="form-item"><label>地址</label><input value="http://192.168.33.199:9090" readonly></div>
+<div class="form-item"><label>采集器</label><input value="rongqiao-192.168.33.199" readonly></div>
+<div class="form-item"><label>采集间隔</label><input value="45" readonly></div>
+<div class="form-item"><label>采集超时时间</label><input value="5" readonly></div>
+</div><p class="hint">截取上方配置区域，导入插件，然后选择下方目标配置进行填写。</p></section>
+<section><h2>目标配置</h2><form id="target" autocomplete="off">
+<div class="form-item"><label for="name">名称</label><input id="name" placeholder="请输入名称"></div>
+<div class="form-item"><label for="address">地址</label><input id="address" type="url" placeholder="请输入地址"></div>
+<div class="form-item"><label for="collector">采集器</label><select id="collector"><option value="">请选择采集器</option><option value="rongqiao">rongqiao-192.168.33.199</option><option value="other">other-agent</option></select></div>
+<div class="form-item"><label for="interval">采集间隔</label><input id="interval" type="number" min="1" max="3600"></div>
+<div class="form-item"><label for="timeout">采集超时时间</label><input id="timeout" type="number" min="1" max="300"></div>
+</form><p id="notice" role="status"></p><div class="actions"><button id="reset" type="button">清空目标表单</button></div></section>
+<section><h2>跳过规则测试</h2><form id="exceptions">
+<div class="form-item"><label for="existing">名称</label><input id="existing" value="已有内容不会覆盖"></div>
+<div class="form-item"><label for="different">服务地址</label><input id="different" placeholder="与“地址”不同名"></div>
+<div class="form-item"><label for="units">采集间隔（秒）</label><input id="units" placeholder="单位不同，不匹配"></div>
+<div class="form-item"><label for="disabled">采集超时时间</label><input id="disabled" disabled></div>
+</form></section>
+</main><script>
+document.querySelectorAll('form').forEach(form=>form.addEventListener('submit',e=>e.preventDefault()));
+document.getElementById('reset').addEventListener('click',()=>{document.getElementById('target').reset();document.getElementById('notice').textContent='目标表单已清空';});
+document.getElementById('target').addEventListener('change',()=>{document.getElementById('notice').textContent='已检测到字段变化，数据仅保留在当前页面。';});
+</script></body></html>

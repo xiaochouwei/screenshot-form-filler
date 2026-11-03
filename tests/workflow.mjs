@@ -1,0 +1,103 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import http from 'node:http';
+import { readFile, cp, writeFile, mkdir } from 'node:fs/promises';
+const root = path.resolve(import.meta.dirname, '..');
+const server = http.createServer(async (_, res) => { res.setHeader('Content-Type', 'text/html;charset=utf-8'); res.end(await readFile(path.join(root, 'src/demo.html'))); });
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+let context;
+try {
+  const manifest = JSON.parse(await readFile(path.join(root,'dist/manifest.json'),'utf8'));
+  assert.equal(manifest.host_permissions, undefined);
+  assert.ok(manifest.permissions.includes('tabs'));
+  assert.ok(manifest.optional_host_permissions.includes('http://*/*'));
+  context = await chromium.launchPersistentContext('', { executablePath: process.env.TEST_CHROMIUM, headless: true, args: ['--accept-optional-permissions', `--disable-extensions-except=${path.join(root,'dist')}`, `--load-extension=${path.join(root,'dist')}`] });
+  let worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+  let id = new URL(worker.url()).host;
+  let target = await context.newPage();
+  await target.goto(`http://127.0.0.1:${server.address().port}/`);
+  let panel = await context.newPage();
+  await panel.goto(`chrome-extension://${id}/panel.html`);
+  assert.equal(await panel.locator('#capture').count(), 1, 'Screenshot capture entry is missing');
+  await target.bringToFront();
+  const before = await panel.evaluate(async () => { const [tab] = await chrome.tabs.query({active:true,currentWindow:true}); let blocked=false; try {await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});} catch {blocked=true;} return {url:tab.url,blocked}; });
+  assert.ok(before.url.startsWith('http://127.0.0.1:'));
+  assert.equal(before.blocked,true,'Unapproved website must remain inaccessible');
+  await context.close();
+  // Headless Chromium cannot approve browser-native permission bubbles. Use a
+  // separate fixture for post-approval workflow. <all_urls> is test-only to
+  // exercise captureVisibleTab without a physical activeTab toolbar click.
+  const fixture = path.join(root,'.workflow-extension');
+  await cp(path.join(root,'dist'),fixture,{recursive:true});
+  await writeFile(path.join(fixture,'manifest.json'),JSON.stringify({...manifest,host_permissions:['<all_urls>']}));
+  context = await chromium.launchPersistentContext('', {executablePath:process.env.TEST_CHROMIUM,headless:true,args:[`--disable-extensions-except=${fixture}`,`--load-extension=${fixture}`]});
+  worker=context.serviceWorkers()[0] || await context.waitForEvent('serviceworker'); id=new URL(worker.url()).host;
+  target=await context.newPage(); await target.goto(`http://127.0.0.1:${server.address().port}/`);
+  panel=await context.newPage(); await panel.goto(`chrome-extension://${id}/panel.html`);
+  await panel.waitForFunction(() => !document.getElementById('capture').disabled);
+  await target.bringToFront();
+  await panel.evaluate(() => document.getElementById('capture').click());
+  await panel.waitForFunction(() => !document.getElementById('capture').disabled && document.getElementById('cancel').hidden,null,{timeout:120000});
+  assert.ok(await panel.locator('#image').evaluate(n => n.naturalWidth > 0),await panel.locator('#status').innerText());
+  assert.ok((await panel.locator('#status').innerText()).includes('已识别'));
+  assert.ok(await panel.evaluate(async()=> (await chrome.storage.local.get('savedCapture')).savedCapture.sourceRows.length>=5));
+  await panel.reload();
+  await panel.waitForFunction(() => document.getElementById('image').naturalWidth > 0 && document.querySelectorAll('.data-row').length >= 5);
+  await target.bringToFront();
+  await panel.evaluate(() => document.getElementById('scan').click());
+  await panel.waitForFunction(() => document.getElementById('scope').options.length > 1);
+  const tabId = await panel.evaluate(async () => (await chrome.tabs.query({active:true,currentWindow:true}))[0].id);
+  const source = await panel.evaluate(id => chrome.tabs.sendMessage(id, {type:'SOURCE'}), tabId);
+  assert.equal(source.ok, true);
+  assert.ok(source.rows.some(r => r.label === '名称' && r.value === '融侨'));
+  assert.ok(!source.rows.some(r => /password/i.test(r.label)));
+  // Verify one-click matching/filling from restored saved data.
+  await panel.evaluate(async rows => { const {savedCapture} = await chrome.storage.local.get('savedCapture'); await chrome.runtime.sendMessage({type:'HISTORY',action:{type:'update',id:savedCapture.id,revision:savedCapture.revision,patch:{rows}}}); }, source.rows);
+  await panel.reload();
+  await panel.waitForFunction(() => document.querySelectorAll('.data-row').length > 0);
+  await target.bringToFront();
+  await panel.evaluate(() => document.getElementById('fill').click());
+  await panel.waitForFunction(() => !document.getElementById('fill').disabled);
+  assert.ok((await panel.locator('#status').innerText()).includes('多个表单'));
+  const scopes = await panel.locator('#scope option').evaluateAll(ns => ns.map(n => ({value:n.value,text:n.textContent})));
+  await panel.selectOption('#scope', scopes.find(s => /表单 2/.test(s.text)).value);
+  await target.bringToFront();
+  await panel.evaluate(() => document.getElementById('fill').click());
+  await panel.waitForFunction(() => document.getElementById('summary').textContent === '5 项已写入');
+  assert.equal(await target.locator('#existing').inputValue(), '已有内容不会覆盖');
+  assert.equal(await target.locator('#different').inputValue(), '');
+  assert.equal(await target.locator('#name').inputValue(), '融侨');
+  await target.locator('#reset').click();
+  // Retrieve the panel's drag token and arm through its real extension channel.
+  const transfer = await panel.evaluateHandle(() => new DataTransfer());
+  await panel.locator('.drag-field').first().dispatchEvent('dragstart',{dataTransfer:transfer});
+  const key = await transfer.evaluate(d => d.getData('application/x-local-screenshot-field'));
+  assert.ok(key);
+  await panel.waitForTimeout(250);
+  await target.evaluate(key => {
+    const handle=document.createElement('button'); handle.id='test-drag'; handle.textContent='drag'; handle.draggable=true; handle.style='position:fixed;top:10px;left:10px;z-index:999';
+    handle.addEventListener('dragstart', e => e.dataTransfer.setData('application/x-local-screenshot-field',key)); document.body.append(handle);
+  },key);
+  await target.locator('#test-drag').dragTo(target.locator('#different'));
+  assert.equal(await target.locator('#different').inputValue(),'');
+  // Re-arm, then a same-name empty input receives only the dragged row.
+  await panel.locator('.drag-field').first().dispatchEvent('dragstart',{dataTransfer:transfer});
+  const nextKey = await transfer.evaluate(d => d.getData('application/x-local-screenshot-field'));
+  assert.notEqual(nextKey,key);
+  await target.evaluate(key => { document.getElementById('test-drag').addEventListener('dragstart', e => e.dataTransfer.setData('application/x-local-screenshot-field',key)); },nextKey);
+  await panel.waitForTimeout(250);
+  await target.locator('#test-drag').dragTo(target.locator('#name'));
+  await target.waitForFunction(() => document.getElementById('name').value === '融侨');
+  assert.equal(await target.locator('#address').inputValue(),'');
+  await panel.bringToFront();
+  const handles = panel.locator('.drag-field');
+  assert.ok(await handles.count());
+  await panel.setViewportSize({width:380,height:960});
+  await mkdir(path.join(root,'test-artifacts'),{recursive:true});
+  await panel.screenshot({path:path.join(root,'test-artifacts/panel-workflow.png'),fullPage:true});
+  await panel.evaluate(() => document.getElementById('clear').click());
+  await panel.reload();
+  assert.equal(await panel.locator('.data-row').count(), 0);
+  console.log('PASS: production URL metadata with no host access; post-grant fixture source values, saved restore, one-click exact fill, occupied/mismatched skips, trusted drag rejects wrong label and fills correct label, clear persistence');
+} finally { await context?.close(); await new Promise(r => server.close(r)); }

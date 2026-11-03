@@ -1,0 +1,9 @@
+{
+  "eng": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+  "chi_sim": "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730",
+  "paddle": {
+    "ch_PP-OCRv4_det_infer.onnx":"30a86f5731181461d08021402766601e4302a9b9b9666be8aff402696339cdff",
+    "ch_PP-OCRv4_rec_infer.onnx":"06b3e6af6c59a1ba5d53790ed8c2e4b2de389870b6cf5a97f349f3412cb269c0",
+    "ppocr_keys_v1.txt":"28b2362ad4ab2dc38769aa72feb535e3a9ddb3fd2a7585a05920e6393b1dc7f7"
+  }
+}

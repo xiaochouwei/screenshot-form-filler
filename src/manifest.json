@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "截图填表 · 本地版",
+  "version": "0.9.1",
+  "description": "截图或粘贴图片到本地图片架，自动识别，拖到网页表单或一键填写完全同名的空白字段。",
+  "minimum_chrome_version": "142",
+  "permissions": ["activeTab", "scripting", "sidePanel", "tabs", "storage", "clipboardRead", "offscreen"],
+  "optional_host_permissions": ["http://*/*", "https://*/*", "file:///*"],
+  "action": { "default_title": "打开截图填表" },
+  "commands": {
+    "receive-screenshot": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "框选当前网页并自动识别截图"
+    },
+    "open-workspace": {
+      "suggested_key": { "default": "Alt+Shift+F" },
+      "description": "打开或关闭截图填表工作台"
+    }
+  },
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "panel.html" },
+  "sandbox": {"pages":["ocr-sandbox.html"]},
+  "web_accessible_resources": [{"resources":["vendor/paddle/*","vendor/ort/*","inbox.html","inbox.js","inbox.css"],"matches":["<all_urls>"]}],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; img-src 'self' blob: data:; style-src 'self'; object-src 'none'; base-uri 'none'",
+    "sandbox": "sandbox allow-scripts; default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' data:; worker-src 'self' blob:; img-src 'self' blob: data:; object-src 'none'; base-uri 'none'"
+  }
+}

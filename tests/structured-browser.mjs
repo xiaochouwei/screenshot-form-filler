@@ -1,0 +1,52 @@
+import {chromium} from 'playwright';
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+
+const browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM});
+try {
+  const page=await browser.newPage();
+  await page.route('http://structured.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Structured fields</title>'}));
+  await page.goto('http://structured.test/');
+  const form=(filled=false,swap=false)=>`<form><div class="anything"><div class="field-label"><label>匹配规则</label></div><section>${(swap?['value','key']:['key','value']).map(key=>`<input id="${key}" name="rules[0].${key}" placeholder="请输入${key}" value="${filled?(key==='key'?'severity':'P[0-2]'):''}">`).join('')}<label><input type="checkbox" id="regex" ${filled?'checked':''}>正则表达式</label></section></div></form>`;
+  await page.setContent(form(true));
+  await page.evaluate(()=>{
+    globalThis.chrome={runtime:{id:'test',onMessage:{addListener:fn=>{globalThis.handler=fn;}}}};
+    globalThis.send=message=>new Promise(resolve=>handler(message,{id:'test'},resolve));
+  });
+  await page.addScriptTag({content:await readFile(new URL('../dist/content.js',import.meta.url),'utf8')});
+  const source=await page.evaluate(()=>send({type:'SOURCE',geometry:true}));
+  assert.equal(source.rows[0]?.kind,'group',JSON.stringify(source));
+  assert.equal(source.rows[0].label,'匹配规则');
+  assert.deepEqual(source.rows[0].fields.map(field=>[field.label,field.value,field.checked]),[['key','severity',undefined],['value','P[0-2]',undefined],['正则表达式','',true]]);
+  await page.setContent(form(false,true));
+  await page.evaluate(()=>{document.querySelector('form').onsubmit=()=>{globalThis.submitted=true;return false;};document.querySelectorAll('input').forEach(node=>node.addEventListener('change',()=>node.dataset.changed='yes'));});
+  const scan=await page.evaluate(()=>send({type:'SCAN'}));
+  assert.equal(scan.fields.length,1,JSON.stringify(scan));
+  const preview=await page.evaluate(({rows,token,scopeId})=>send({type:'PREVIEW',rows,token,scopeId,syncStates:true}),{rows:source.rows,token:scan.token,scopeId:scan.scopes[0].id});
+  assert.equal(preview.plan[0].ready,true,JSON.stringify(preview));
+  const result=await page.evaluate(({token,previewId})=>send({type:'FILL',token,previewId}),{token:scan.token,previewId:preview.previewId});
+  assert.equal(result.results[0].status,'filled',JSON.stringify(result));
+  assert.equal(await page.locator('#key').inputValue(),'severity');
+  assert.equal(await page.locator('#value').inputValue(),'P[0-2]');
+  assert.equal(await page.locator('#regex').isChecked(),true);
+  assert.equal(await page.evaluate(()=>!!globalThis.submitted),false);
+  assert.equal(await page.locator('#value').getAttribute('data-changed'),'yes');
+  await page.setContent(form(false));
+  await page.locator('#value').fill('已有值');
+  const occupied=await page.evaluate(()=>send({type:'SCAN'}));
+  const rejected=await page.evaluate(({rows,token,scopeId})=>send({type:'PREVIEW',rows,token,scopeId,syncStates:true}),{rows:source.rows,token:occupied.token,scopeId:occupied.scopes[0].id});
+  assert.equal(rejected.plan[0].ready,false);
+  await page.evaluate(({token,previewId})=>send({type:'FILL',token,previewId}),{token:occupied.token,previewId:rejected.previewId});
+  assert.equal(await page.locator('#key').inputValue(),'');
+  assert.equal(await page.locator('#value').inputValue(),'已有值');
+  await page.setContent(form(false));
+  await page.locator('#key').evaluate(node=>node.addEventListener('input',()=>{document.getElementById('value').value='页面联动产生的值';}));
+  const dynamic=await page.evaluate(()=>send({type:'SCAN'}));
+  const dynamicPreview=await page.evaluate(({rows,token,scopeId})=>send({type:'PREVIEW',rows,token,scopeId,syncStates:true}),{rows:source.rows,token:dynamic.token,scopeId:dynamic.scopes[0].id});
+  const partial=await page.evaluate(({token,previewId})=>send({type:'FILL',token,previewId}),{token:dynamic.token,previewId:dynamicPreview.previewId});
+  assert.equal(partial.results[0].status,'failed');
+  assert.match(partial.results[0].reason,/子项已变化/);
+  assert.equal(await page.locator('#value').inputValue(),'页面联动产生的值','A sibling changed by page logic must not be overwritten');
+  assert.equal(await page.locator('#regex').isChecked(),false,'Stop remaining group actions after a dynamic change');
+  console.log('PASS: structured key/value and checkbox source → reordered target → input/change readback; existing group remains unchanged; no submit');
+} finally {await browser.close();}

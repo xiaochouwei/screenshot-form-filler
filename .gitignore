@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.test-extension/
+.test-profile/
+test-artifacts/
+.model-cache/
+.*-extension/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>截图填表</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><i data-lucide="scan-text"></i><h1>截图填表</h1></div>
+    <div class="header-actions">
+      <span class="local-tag">本地识别</span>
+      <button id="popout" class="icon-button" title="在独立窗口打开" aria-label="在独立窗口打开"><i data-lucide="external-link"></i></button>
+      <button id="settings-toggle" class="icon-button" title="设置" aria-label="设置" aria-expanded="false" aria-controls="settings-section"><i data-lucide="settings-2"></i></button>
+      <button id="close-workspace" class="icon-button" title="关闭工作台" aria-label="关闭工作台"><i data-lucide="x"></i></button>
+    </div>
+  </header>
+  <main>
+    <section class="current-page" aria-label="当前网页">
+      <div class="current-page-heading"><span id="current-page-title">当前网页</span><span id="current-page-connection" data-state="pending">未连接</span></div>
+      <span id="current-page-url" class="muted"></span>
+      <button id="connect-current" class="button small" hidden><i data-lucide="link"></i>连接当前网站</button>
+    </section>
+    <section id="settings-section" class="settings-section" hidden aria-labelledby="settings-title">
+      <h2 id="settings-title">设置</h2>
+      <section id="receiver-section" aria-label="网站访问">
+        <div class="receiver-tools"><select id="receiver" aria-label="接收网页"><option value="">选择接收网页</option></select><button id="connect-receiver" class="icon-button" title="连接所选网站" aria-label="连接所选网站"><i data-lucide="link"></i></button><button id="refresh-receivers" class="icon-button" title="刷新接收网页" aria-label="刷新接收网页"><i data-lucide="refresh-cw"></i></button></div>
+        <button id="enable-websites" class="button small"><i data-lucide="link"></i>连接所有网页</button>
+        <p id="receiver-status" class="muted"></p>
+      </section>
+      <div class="settings-actions">
+        <button id="capture" class="button small"><i data-lucide="scan-line"></i>截取整个可见网页</button>
+        <button id="shortcut-settings" class="button small"><i data-lucide="keyboard"></i>快捷键设置</button>
+        <button id="clear-history" class="button small danger"><i data-lucide="trash-2"></i>清空图片历史</button>
+      </div>
+    </section>
+    <section class="source-section" aria-labelledby="source-title">
+      <div class="source-toolbar">
+        <h2 id="source-title">图片</h2>
+        <div class="source-actions">
+          <button id="region-capture" class="button small"><i data-lucide="camera"></i>截图</button>
+          <button id="paste" class="button small"><i data-lucide="clipboard-paste"></i>粘贴</button>
+          <button id="choose" class="icon-button" title="导入图片" aria-label="导入图片"><i data-lucide="upload"></i></button>
+        </div>
+      </div>
+      <div id="capture-history" class="capture-history" aria-label="图片历史"></div>
+      <p id="history-empty" class="history-empty">暂无图片</p>
+      <div id="dropzone" class="dropzone">
+        <input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
+        <div id="empty-image"><i data-lucide="image-plus"></i></div>
+        <img id="image" alt="待识别的截图" title="拖到目标表单，填写同名空白字段" draggable="false" hidden>
+      </div>
+      <div class="image-toolbar">
+        <span id="image-info" class="muted">未选择图片</span>
+        <button id="view" class="icon-button" disabled title="查看原图" aria-label="查看原图"><i data-lucide="maximize-2"></i></button>
+        <button id="recognize" class="button small" disabled><i data-lucide="scan-line"></i>识别</button>
+        <button id="cancel" class="button small" hidden><i data-lucide="x"></i>取消</button>
+        <button id="clear" class="icon-button" title="清空本次内容" aria-label="清空本次内容"><i data-lucide="trash-2"></i></button>
+      </div>
+      <progress id="progress" max="100" value="0" hidden></progress>
+      <p id="status" class="status" role="status" aria-live="polite">等待导入</p>
+    </section>
+    <details id="workspace-details" open>
+      <summary class="workspace-summary">字段 <span id="compact-count" class="count">0</span></summary>
+      <section class="fields-section" aria-labelledby="data-title">
+        <div class="section-title"><h2 id="data-title">字段 <span id="row-count" class="count">0</span></h2><button id="add" class="icon-button" title="添加字段" aria-label="添加字段"><i data-lucide="plus"></i></button></div>
+        <div class="column-labels"><span>字段名称</span><span>字段值</span><span>填入</span></div>
+        <div id="rows"></div><p id="empty-rows" class="empty-state">暂无字段</p>
+        <details id="raw-details" hidden><summary>识别原文</summary><textarea id="raw" readonly aria-label="识别原文"></textarea></details>
+      </section>
+      <section class="target-section" aria-labelledby="target-title">
+        <div class="section-title"><h2 id="target-title">目标表单</h2><button id="scan" class="icon-button" title="扫描当前页" aria-label="扫描当前页"><i data-lucide="refresh-cw"></i></button></div>
+        <p id="page-title" class="target-name">尚未选择页面</p>
+        <div class="target-tools"><select id="scope" aria-label="目标表单" disabled><option value="">请选择表单</option></select><button id="match" class="button small" disabled><i data-lucide="list-checks"></i>匹配预览</button></div>
+        <p id="page-note" class="muted"></p>
+        <details id="fill-options"><summary>填写选项</summary><div class="fill-options-content"><label class="state-setting"><input id="sync-states" type="checkbox">同步开关 / 勾选状态</label><label class="state-setting" title="调用明确的网页添加入口；单次最多新增 5 行"><input id="allow-add" type="checkbox">允许增项</label></div></details>
+        <details id="target-details" hidden><summary>网页读取到的字段</summary><textarea id="target-fields" readonly aria-label="网页读取到的字段"></textarea></details>
+      </section>
+      <details id="results-details" class="results-details" hidden><summary><span id="results-title">填写结果</span> <span id="results-count" class="count"></span></summary><div id="matches" class="matches" aria-live="polite"></div></details>
+    </details>
+  </main>
+  <footer><div class="fill-summary"><strong id="summary">0 项可填写</strong><span>仅同名 · 仅空白</span></div><button id="fill" class="button primary" disabled><i data-lucide="arrow-down-to-line"></i>开始填入</button></footer>
+  <script src="panel.js"></script>
+</body>
+</html>
